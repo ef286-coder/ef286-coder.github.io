@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>StudySprout | Classroom Simulation</title>
+  <style>
+    :root {
+      --green: #176b4d;
+      --green-light: #e9f6ef;
+      --blue: #3a62b0;
+      --paper: #ffffff;
+      --ink: #20302a;
+      --muted: #687970;
+      --line: #dce6e0;
+      --warning: #fff4d8;
+      --danger: #ffe5e5;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #f3f7f5;
+      color: var(--ink);
+    }
+    header {
+      background: linear-gradient(135deg, #176b4d, #2b8a69);
+      color: white;
+      padding: 24px clamp(16px, 4vw, 48px);
+    }
+    header h1 { margin: 0 0 4px; }
+    header p { margin: 0; opacity: 0.92; }
+    main { max-width: 1200px; margin: auto; padding: 20px; }
+    .layout { display: grid; grid-template-columns: 280px 1fr; gap: 20px; }
+    aside, .card {
+      background: var(--paper);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      box-shadow: 0 4px 16px rgb(28 72 52 / 6%);
+    }
+    aside { padding: 18px; height: fit-content; }
+    .field { margin-bottom: 16px; }
+    .field label { display: flex; justify-content: space-between; font-weight: 700; margin-bottom: 7px; }
+    input[type="range"] { width: 100%; accent-color: var(--green); }
+    select, input[type="number"], input[type="text"], textarea {
+      width: 100%;
+      border: 1px solid #bccac3;
+      border-radius: 8px;
+      padding: 10px;
+      font: inherit;
+      background: white;
+    }
+    textarea { min-height: 90px; resize: vertical; }
+    button {
+      border: 0;
+      border-radius: 8px;
+      background: var(--green);
+      color: white;
+      font-weight: 800;
+      padding: 11px 14px;
+      cursor: pointer;
+    }
+    button:hover { background: #11583e; }
+    .tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; }
+    .tab {
+      background: #e7eee9;
+      color: var(--ink);
+      white-space: nowrap;
+    }
+    .tab.active { background: var(--green); color: white; }
+    .panel { display: none; }
+    .panel.active { display: block; }
+    .card { padding: 18px; margin-bottom: 16px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    .metric {
+      background: var(--green-light);
+      border-radius: 12px;
+      padding: 16px;
+    }
+    .metric span { display: block; color: var(--muted); font-size: 0.9rem; }
+    .metric strong { display: block; margin-top: 5px; font-size: 1.25rem; }
+    .notice {
+      background: #edf4ff;
+      border-left: 4px solid var(--blue);
+      padding: 12px;
+      border-radius: 7px;
+    }
+    .success { background: #e5f7ed; border-left-color: var(--green); }
+    .warning { background: var(--warning); border-left-color: #d89a00; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 10px; border-bottom: 1px solid var(--line); }
+    th { background: #f4f8f6; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    canvas { width: 100%; max-height: 280px; }
+    .quiz label { display: block; margin: 10px 0; }
+    footer { text-align: center; color: var(--muted); padding: 20px; }
+    @media (max-width: 850px) {
+      .layout { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, 1fr); }
+      .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌱 StudySprout</h1>
+    <p>A fictional study-habits and wellness education business. All money and results are simulated.</p>
+  </header>
+
+  <main>
+    <div class="layout">
+      <aside>
+        <h2>Business inputs</h2>
+        <div class="field">
+          <label><span>Price per pack</span><span id="priceValue">$22</span></label>
+          <input id="price" type="range" min="8" max="40" value="22">
+        </div>
+        <div class="field">
+          <label><span>Marketing spend</span><span id="adValue">$500</span></label>
+          <input id="adSpend" type="range" min="0" max="2500" value="500" step="50">
+        </div>
+        <div class="field">
+          <label><span>Team hours</span><span id="hoursValue">50</span></label>
+          <input id="teamHours" type="range" min="0" max="160" value="50" step="5">
+        </div>
+        <div class="field">
+          <label><span>Program quality</span><span id="qualityValue">7</span></label>
+          <input id="quality" type="range" min="1" max="10" value="7">
+        </div>
+        <div class="field">
+          <label for="month">Seasonality month</label>
+          <select id="month"></select>
+        </div>
+        <div class="field">
+          <label for="startingCash">Starting cash</label>
+          <input id="startingCash" type="number" min="0" step="500" value="5000">
+        </div>
+        <button id="runQuarter" style="width:100%">▶ Run this quarter</button>
+      </aside>
+
+      <section>
+        <nav class="tabs" aria-label="Dashboard sections">
+          <button class="tab active" data-panel="dashboard">📊 Dashboard</button>
+          <button class="tab" data-panel="models">🧮 Business & Models</button>
+          <button class="tab" data-panel="ledger">📒 Ledger & Reports</button>
+          <button class="tab" data-panel="marketing">📣 Marketing</button>
+          <button class="tab" data-panel="quiz">🧠 Quiz & Memo</button>
+        </nav>
+
+        <div id="dashboard" class="panel active">
+          <div class="card">
+            <h2>Quarter snapshot</h2>
+            <div class="metrics">
+              <div class="metric"><span>Estimated students</span><strong id="demandMetric">—</strong></div>
+              <div class="metric"><span>Estimated revenue</span><strong id="revenueMetric">—</strong></div>
+              <div class="metric"><span>Estimated profit</span><strong id="profitMetric">—</strong></div>
+              <div class="metric"><span>Break-even students</span><strong id="breakEvenMetric">—</strong></div>
+            </div>
+          </div>
+          <div class="card">
+            <div id="forecastNotice" class="notice"></div>
+            <p id="runStatus"></p>
+          </div>
+          <div class="card">
+            <h3>Recorded quarterly results</h3>
+            <canvas id="profitChart" aria-label="Recorded quarterly profit chart"></canvas>
+          </div>
+        </div>
+
+        <div id="models" class="panel">
+          <div class="card">
+            <h2>Business decisions and math models</h2>
+            <h3>Demand model</h3>
+            <p><b>D(p,a,q,t) = max(0, 145 + 6(30 − p) + 3.2√a + 9q + 24 sin(2π(t−1)/12 − π/2))</b></p>
+            <p><i>p</i> is price, <i>a</i> is advertising spend, <i>q</i> is program quality, and <i>t</i> is the month. The square root models diminishing returns on advertising; the sine term models seasonal demand.</p>
+            <div class="grid-3">
+              <div class="metric"><span>Price response</span><strong id="priceResponse">—</strong></div>
+              <div class="metric"><span>Marketing response</span><strong id="adResponse">—</strong></div>
+              <div class="metric"><span>Seasonal effect</span><strong id="seasonEffect">—</strong></div>
+            </div>
+          </div>
+          <div class="card">
+            <h3>Profit model</h3>
+            <p><b>Profit = Dp − D(7.25 + 1.15q) − a − 900 − 18h</b></p>
+            <p id="modelExplanation"></p>
+            <canvas id="priceChart" aria-label="Profit at different prices"></canvas>
+            <div id="priceTable"></div>
+          </div>
+        </div>
+
+        <div id="ledger" class="panel">
+          <div class="card">
+            <h2>Simulated ledger and financial reports</h2>
+            <p id="ledgerEmpty">The ledger is empty. Run a quarter to record transactions.</p>
+            <div id="ledgerTable"></div>
+          </div>
+          <div class="card">
+            <h3>Cumulative report</h3>
+            <div class="metrics">
+              <div class="metric"><span>Simulated revenue</span><strong id="totalRevenue">$0</strong></div>
+              <div class="metric"><span>Simulated expenses</span><strong id="totalExpenses">$0</strong></div>
+              <div class="metric"><span>Cash after quarters</span><strong id="endingCash">$5,000</strong></div>
+            </div>
+          </div>
+        </div>
+
+        <div id="marketing" class="panel">
+          <div class="card">
+            <h2>Marketing lab</h2>
+            <p>Choose a fictional channel and discuss how it could affect reach, cost, and demand assumptions.</p>
+            <div class="grid-2">
+              <div class="field">
+                <label for="channel">Campaign channel</label>
+                <select id="channel">
+                  <option>School newsletter</option>
+                  <option>Study-skills workshop</option>
+                  <option>Student ambassador</option>
+                  <option>Wellness week booth</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="goal">Campaign goal</label>
+                <select id="goal">
+                  <option>Increase awareness</option>
+                  <option>Drive sign-ups</option>
+                  <option>Build trust</option>
+                  <option>Test a new audience</option>
+                </select>
+              </div>
+            </div>
+            <div id="channelNote" class="notice"></div>
+            <p id="marketingSummary"></p>
+          </div>
+        </div>
+
+        <div id="quiz" class="panel">
+          <div class="card quiz">
+            <h2>Precalculus quick check</h2>
+            <p>In the demand model, the advertising term is <b>3.2√a</b>. What does the square root represent?</p>
+            <label><input type="radio" name="answer" value="1"> Advertising has diminishing returns as spending increases.</label>
+            <label><input type="radio" name="answer" value="2"> Demand always doubles when advertising doubles.</label>
+            <label><input type="radio" name="answer" value="3"> Advertising has no effect on demand.</label>
+            <label><input type="radio" name="answer" value="4"> Demand is periodic in advertising spend.</label>
+            <button id="checkAnswer">Check answer</button>
+            <p id="quizResult"></p>
+          </div>
+          <div class="card">
+            <h2>Decision memo</h2>
+            <div class="grid-2">
+              <div class="field">
+                <label for="memoTitle">Memo title</label>
+                <input id="memoTitle" type="text" placeholder="Example: Test a lower price">
+              </div>
+              <div class="field">
+                <label for="memoDecision">Decision</label>
+                <textarea id="memoDecision" placeholder="What decision are you making, and why?"></textarea>
+              </div>
+              <div class="field">
+                <label for="memoEvidence">Math evidence</label>
+                <textarea id="memoEvidence" placeholder="Which model result or precalculus idea supports your decision?"></textarea>
+              </div>
+              <div class="field">
+                <label for="memoRisk">Risk or assumption</label>
+                <textarea id="memoRisk" placeholder="What could make the forecast wrong?"></textarea>
+              </div>
+            </div>
+            <button id="saveMemo">Save memo</button>
+            <p id="memoStatus"></p>
+            <div id="memoList"></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <footer>Classroom simulation only • Fictional business • No real transactions or customer data</footer>
+
+  <script>
+    const $ = id => document.getElementByArray ? document : document.getElementById(id);
+    const months = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    const monthSelect = document.getElementById("month");
+    months.forEach((name, i) => monthSelect.add(new Option(name, i + 1)));
+
+    let quarter = 0;
+    let ledger = [];
+    let memos = [];
+
+    const controls = ["price","adSpend","teamHours","quality","month","startingCash"];
+    controls.forEach(id => document.getElementById(id).addEventListener("input", update));
+    monthSelect.value = new Date().getMonth() + 1;
+
+    document.querySelectorAll(".tab").forEach(tab => {
+      tab.addEventListener("click", () => {
+        document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
+        document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+        tab.classList.add("active");
+        document.getElementById(tab.dataset.panel).classList.add("active");
+        update();
+      });
+    });
+
+    const money = n => n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+    const number = n => n.toLocaleString("en-US", { maximumFractionDigits: 0 });
+
+    function model(p = null) {
+      const price = p ?? Number(document.getElementById("price").value);
+      const ad = Number(document.getElementById("adSpend").value);
+      const hours = Number(document.getElementById("teamHours").value);
+      const quality = Number(document.getElementById("quality").value);
+      const month = Number(document.getElementById("month").value);
+
+      const angle = 2 * Math.PI * (month - 1) / 12;
+      const seasonality = 24 * Math.sin(angle - Math.PI / 2);
+      const priceResponse = 6 * (30 - price);
+      const adResponse = 3.2 * Math.sqrt(ad);
+      const qualityResponse = 9 * quality;
+      const demand = Math.max(0, Math.round(145 + priceResponse + adResponse + qualityResponse + seasonality));
+      const variableCost = 7.25 + 1.15 * quality;
+      const fixedCost = 900;
+      const payroll = hours * 18;
+      const revenue = demand * price;
+      const variableExpense = demand * variableCost;
+      const profit = revenue - variableExpense - ad - fixedCost - payroll;
+      const breakEven = price > variableCost ? Math.ceil((fixedCost + payroll + ad) / (price - variableCost)) : null;
+
+      return {price, ad, hours, quality, month, seasonality, priceResponse, adResponse, qualityResponse, demand, variableCost, fixedCost, payroll, revenue, variableExpense, profit, breakEven};
+    }
+
+    function drawLineChart(canvasId, points, color = "#176b4d") {
+      const canvas = document.getElementById(canvasId);
+      const ctx = canvas.getContext("2d");
+      const rect = canvas.getBoundingClientRect();
+      canvas.width = Math.max(300, rect.width);
+      canvas.height = 260;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      if (!points.length) return;
+
+      const padding = 42;
+      const xs = points.map(p => p.x);
+      const ys = points.map(p => p.y);
+      const minX = Math.min(...xs), maxX = Math.max(...xs);
+      let minY = Math.min(0, ...ys), maxY = Math.max(0, ...ys);
+      if (maxY === minY) maxY = minY + 1;
+      const sx = x => padding + (x - minX) / (maxX - minX || 1) * (canvas.width - padding * 2);
+      const sy = y => canvas.height - padding - (y - minY) / (maxY - minY) * (canvas.height - padding * 2);
+
+      ctx.strokeStyle = "#ccd8d1";
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(padding, sy(0)); ctx.lineTo(canvas.width - padding, sy(0));
+      ctx.moveTo(padding, padding); ctx.lineTo(padding, canvas.height - padding);
+      ctx.stroke();
+
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      points.forEach((p, i) => i ? ctx.lineTo(sx(p.x), sy(p.y)) : ctx.moveTo(sx(p.x), sy(p.y)));
+      ctx.stroke();
+
+      ctx.fillStyle = "#687970";
+      ctx.font = "12px system-ui";
+      points.forEach(p => {
+        ctx.fillText(String(p.label ?? p.x), sx(p.x) - 12, canvas.height - 18);
+      });
+    }
+
+    function update() {
+      const m = model();
+      document.getElementById("priceValue").textContent = money(m.price);
+      document.getElementById("adValue").textContent = money(m.ad);
+      document.getElementById("hoursValue").textContent = m.hours;
+      document.getElementById("qualityValue").textContent = m.quality;
+
+      document.getElementById("demandMetric").textContent = number(m.demand);
+      document.getElementById("revenueMetric").textContent = money(m.revenue);
+      document.getElementById("profitMetric").textContent = money(m.profit);
+      document.getElementById("breakEvenMetric").textContent = m.breakEven === null ? "Not reachable" : number(m.breakEven);
+      document.getElementById("forecastNotice").textContent = m.profit >= 0
+        ? "This scenario forecasts a positive quarterly result. Consider whether the assumptions are realistic."
+        : "This scenario forecasts a loss. Try adjusting price, marketing, program quality, or team hours.";
+      document.getElementById("forecastNotice").className = m.profit >= 0 ? "notice success" : "notice warning";
+
+      document.getElementById("priceResponse").textContent = (m.priceResponse >= 0 ? "+" : "") + m.priceResponse.toFixed(1) + " students";
+      document.getElementById("adResponse").textContent = (m.adResponse >= 0 ? "+" : "") + m.adResponse.toFixed(1) + " students";
+      document.getElementById("seasonEffect").textContent = (m.seasonality >= 0 ? "+" : "") + m.seasonality.toFixed(1) + " students";
+      document.getElementById("modelExplanation").textContent =
+        `At these inputs, estimated demand is ${number(m.demand)} students, variable cost is ${money(m.variableCost)} per student, and estimated quarterly profit is ${money(m.profit)}.`;
+
+      const pricePoints = [];
+      const priceRows = [];
+      for (let p = 10; p <= 40; p += 2) {
+        const pm = model(p);
+        pricePoints.push({x:p, y:pm.profit, label:p});
+        priceRows.push({Price: money(p), Students: number(pm.demand), Profit: money(pm.profit)});
+      }
+      drawLineChart("priceChart", pricePoints);
+      document.getElementById("priceTable").innerHTML = table(priceRows);
+
+      updateMarketing();
+      updateLedger();
+      drawQuarterChart();
+    }
+
+    function table(rows) {
+      if (!rows.length) return "";
+      const keys = Object.keys(rows[0]);
+      return `<table><thead><tr>${keys.map(k => `<th>${k}</th>`).join("")}</tr></thead><tbody>` +
+        rows.map(row => `<tr>${keys.map(k => `<td>${row[k]}</td>`).join("")}</tr>`).join("") +
+        "</tbody></table>";
+    }
+
+    document.getElementById("runQuarter").addEventListener("click", () => {
+      const m = model();
+      quarter++;
+      ledger.push(
+        {Quarter: quarter, Category: "Sales revenue", Amount: m.revenue},
+        {Quarter: quarter, Category: "Program delivery", Amount: -m.variableExpense},
+        {Quarter: quarter, Category: "Marketing", Amount: -m.ad},
+        {Quarter: quarter, Category: "Fixed operating costs", Amount: -m.fixedCost},
+        {Quarter: quarter, Category: "Team payroll", Amount: -m.payroll}
+      );
+      document.getElementById("runStatus").textContent = `Quarter ${quarter} recorded in the simulated ledger.`;
+      update();
+    });
+
+    function updateLedger() {
+      document.getElementById("ledgerEmpty").style.display = ledger.length ? "none" : "block";
+      document.getElementById("ledgerTable").innerHTML = ledger.length
+        ? table(ledger.map(r => ({Quarter:r.Quarter, Category:r.Category, "Amount ($)":money(r.Amount)})))
+        : "";
+
+      const revenue = ledger.filter(r => r.Amount > 0).reduce((s,r) => s + r.Amount, 0);
+      const expenses = -ledger.filter(r => r.Amount < 0).reduce((s,r) => s + r.Amount, 0);
+      const startingCash = Number(document.getElementById("startingCash").value) || 0;
+      document.getElementById("totalRevenue").textContent = money(revenue);
+      document.getElementById("totalExpenses").textContent = money(expenses);
+      document.getElementById("endingCash").textContent = money(startingCash + revenue - expenses);
+    }
+
+    function drawQuarterChart() {
+      const totals = {};
+      ledger.forEach(r => totals[r.Quarter] = (totals[r.Quarter] || 0) + r.Amount);
+      const points = Object.entries(totals).map(([q, total]) => ({x:Number(q), y:total, label:"Q"+q}));
+      drawLineChart("profitChart", points, "#3a62b0");
+    }
+
+    function updateMarketing() {
+      const notes = {
+        "School newsletter": "Low-cost reach; success may depend on how many families read the newsletter.",
+        "Study-skills workshop": "More direct engagement; requires staff time and a clear learning activity.",
+        "Student ambassador": "Peer-to-peer promotion; agree on accurate, respectful messaging.",
+        "Wellness week booth": "Visible in-person outreach; plan materials and accessibility."
+      };
+      const channel = document.getElementById("channel").value;
+      const goal = document.getElementById("goal").value;
+      document.getElementById("channelNote").textContent = notes[channel];
+      document.getElementById("marketingSummary").textContent =
+        `Selected goal: ${goal}. Current modeled marketing response: about ${model().adResponse.toFixed(1)} additional students.`;
+    }
+    document.getElementById("channel").addEventListener("change", updateMarketing);
+    document.getElementById("goal").addEventListener("change", updateMarketing);
+
+    document.getElementById("checkAnswer").addEventListener("click", () => {
+      const selected = document.querySelector('input[name="answer"]:checked');
+      const result = document.getElementById("quizResult");
+      if (!selected) {
+        result.textContent = "Select an answer first.";
+        result.className = "notice warning";
+      } else if (selected.value === "1") {
+        result.textContent = "Correct! The square-root function increases, but each additional dollar contributes less than the previous one.";
+        result.className = "notice success";
+      } else {
+        result.textContent = "Not quite. Think about how the slope of √a changes as advertising spending gets larger.";
+        result.className = "notice warning";
+      }
+    });
+
+    document.getElementById("saveMemo").addEventListener("click", () => {
+      const title = document.getElementById("memoTitle").value.trim();
+      const decision = document.getElementById("memoDecision").value.trim();
+      if (!title || !decision) {
+        document.getElementById("memoStatus").textContent = "Add a memo title and decision before saving.";
+        document.getElementById("memoStatus").className = "notice warning";
+        return;
+      }
+      memos.push({
+        Title:title,
+        Decision:decision,
+        "Math evidence":document.getElementById("memoEvidence").value.trim(),
+        "Risk / assumption":document.getElementById("memoRisk").value.trim()
+      });
+      document.getElementById("memoStatus").textContent = "Memo saved for this session.";
+      document.getElementById("memoStatus").className = "notice success";
+      document.getElementById("memoList").innerHTML = table(memos);
+    });
+
+    update();
+  </script>
+</body>
+</html>
